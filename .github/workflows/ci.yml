@@ -41,7 +41,7 @@ jobs:
         run: |
           # keep the PR tidy: drop this bot's earlier comments
           gh api "repos/$GITHUB_REPOSITORY/issues/1/comments" --paginate \
-            --jq '.[] | select(.user.login == "github-actions[bot]") | .id' 2>/dev/null \
+            --jq '.[] | select(.user.login == "github-actions" or .user.login == "github-actions[bot]") | .id' 2>/dev/null \
             | while read -r id; do
                 gh api "repos/$GITHUB_REPOSITORY/issues/1/comments/$id" -X DELETE 2>/dev/null || true
               done
