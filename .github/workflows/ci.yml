@@ -39,6 +39,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # keep the PR tidy: drop this bot's earlier comments
+          gh api "repos/$GITHUB_REPOSITORY/issues/1/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | .id' 2>/dev/null \
+            | while read -r id; do
+                gh api "repos/$GITHUB_REPOSITORY/issues/1/comments/$id" -X DELETE 2>/dev/null || true
+              done
           {
             echo "CI run ${{ github.run_id }} for ${{ github.sha }}: **${{ job.status }}**"
             echo '```'
@@ -50,8 +56,10 @@ jobs:
           } > /tmp/report.md
           gh pr comment 1 --body-file /tmp/report.md || echo "could not comment"
 
+      # base64 frames are only needed when the rendering sandbox cannot fetch
+      # artifacts; trigger with a commit message containing [frames]
       - name: post frames to PR
-        if: success()
+        if: success() && contains(github.event.head_commit.message, '[frames]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
