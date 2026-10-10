@@ -152,6 +152,7 @@ fn build_lut(pal: &[C]) -> Vec<u8> {
 // ---------------------------------------------------------------------------
 
 fn run(a: &Args) -> Result<(), String> {
+    let t0 = std::time::Instant::now();
     let text = std::fs::read_to_string(&a.program)
         .map_err(|e| format!("cannot read '{}': {e}", a.program))?;
     let src = load_source(&text)?;
@@ -268,9 +269,10 @@ fn run(a: &Args) -> Result<(), String> {
 
     let dur = written as f64 * delay_cs as f64 * 10.0 / 1000.0;
     eprintln!(
-        "wrote {out} — {written} frames, {W}x{H}, ~{dur:.0}s, {} commands executed{}",
+        "wrote {out} — {written} frames, {W}x{H}, ~{dur:.0}s, {} commands executed{} (rendered in {:.2}s)",
         r.t.steps.len(),
-        if scaled { ", loop frames scaled down" } else { "" }
+        if scaled { ", loop frames scaled down" } else { "" },
+        t0.elapsed().as_secs_f64()
     );
     Ok(())
 }

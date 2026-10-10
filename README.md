@@ -1,15 +1,21 @@
 # visual_bf
 
-`bfviz.py` turns a small [Brainfuck](https://esolangs.org/wiki/Brainfuck)
+`bfviz` turns a small [Brainfuck](https://esolangs.org/wiki/Brainfuck)
 program into a 1280×720 animated GIF that shows, step by step, what the
 machine is doing. It was made to illustrate BF programs in articles: clear,
 calm, and complete — no step is ever skipped, long loops just play faster.
 
-```
-pip install -r requirements.txt        # only dependency: Pillow
+Written in Rust with exactly two pure-Rust dependencies (`ab_glyph` for
+text, `gif` for encoding). Renders at 2× and box-downsamples for crisp
+anti-aliased output; a typical 500-frame GIF renders in a couple of seconds.
 
-python3 bfviz.py examples/add.bf                       # no input
-printf 'hi\n' | python3 bfviz.py examples/cat.bf       # program reads stdin
+## Quick start
+
+```
+cargo build --release
+
+./target/release/bfviz examples/add.bf                     # no input
+printf 'hi\n' | ./target/release/bfviz examples/cat.bf     # program reads stdin
 ```
 
 The GIF is written next to the source file (`add.bf` → `add.gif`) unless
@@ -64,8 +70,8 @@ initial state and ends with a longer hold on the final state.
 ## CLI
 
 ```
-python3 bfviz.py PROGRAM [-o OUT.gif] [--cells N] [--max-steps N]
-                         [--max-frames N] [--frame-ms MS]
+bfviz PROGRAM [-o OUT.gif] [--cells N] [--max-steps N]
+              [--max-frames N] [--frame-ms MS]
 ```
 
 * `PROGRAM` — Brainfuck source file (input comes from **stdin**)
@@ -81,14 +87,21 @@ python3 bfviz.py PROGRAM [-o OUT.gif] [--cells N] [--max-steps N]
 * `examples/hello.bf` — the canonical Hello World (loops inside loops)
 * `examples/stars.bf` — a loop that prints ten stars, shows the speed‑up
 * `examples/cat.bf` — echoes stdin until EOF; feed it with
-  `printf 'hi\n' | python3 bfviz.py examples/cat.bf`
+  `printf 'hi\n' | ./target/release/bfviz examples/cat.bf`
 
 ## Implementation notes
 
-Single Python file, one dependency (Pillow). Frames are drawn at 2×
-resolution and box‑downsampled for crisp anti‑aliased edges, then quantized
-against a shared 256‑colour palette built from a colour swatch, so flat
-areas stay flat and text stays smooth across all frames. The program is
-traced completely before rendering, which is what makes the adaptive loop
-speed and the `step i/N` counter possible. Rendering is deterministic: same
-source + same stdin → same GIF.
+Frames are drawn at 2× resolution into an RGB buffer, box‑downsampled, and
+quantized against a fixed 256‑colour palette built from colour ramps, so
+flat areas stay flat and text keeps smooth edges across all frames. The
+program is traced completely before rendering, which is what makes the
+adaptive loop speed and the `step i/N` counter possible. Rendering is
+deterministic: same source + same stdin → same GIF.
+
+The CI workflow builds, runs the unit tests (interpreter semantics), renders
+all examples and validates the GIFs (size, frame count, duration) on every
+push.
+
+Fonts: the first one found of DejaVu Sans Mono / Liberation Mono / Menlo /
+Consolas (and DejaVu Sans etc. for labels). If none exists, `bfviz` exits
+with an error instead of drawing with a bitmap font.
