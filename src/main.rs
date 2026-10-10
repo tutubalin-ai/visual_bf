@@ -224,7 +224,7 @@ fn run(a: &Args) -> Result<(), String> {
         let mut idx = vec![0u8; W as usize * H as usize];
         for (i, o) in idx.iter_mut().enumerate() {
             let p = &rgb[i * 3..i * 3 + 3];
-            let key = (((p[0] as usize / 16) << 8) | ((p[1] as usize / 16) << 4) | (p[2] as usize / 16));
+            let key = (p[0] as usize / 16) << 8 | (p[1] as usize / 16) << 4 | p[2] as usize / 16;
             *o = lut[key];
         }
         idx

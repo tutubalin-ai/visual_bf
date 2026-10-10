@@ -304,7 +304,7 @@ fn wrap_source(chars: &mut [SrcChar], cpl: i32) -> Vec<Vec<usize>> {
 
     let mut lines: Vec<Vec<usize>> = vec![Vec::new()];
     let mut col = 0i32;
-    let mut emit = |lines: &mut Vec<Vec<usize>>, col: &mut i32, tok: &[usize], chars: &mut [SrcChar]| {
+    let emit = |lines: &mut Vec<Vec<usize>>, col: &mut i32, tok: &[usize], chars: &mut [SrcChar]| {
         for &i in tok {
             if *col >= cpl {
                 lines.push(Vec::new());
@@ -535,6 +535,7 @@ impl Layout {
             out_rows: self.out_rows,
             out_text_x: self.out_text_x,
             out_text_y: self.out_text_y,
+            out_cw: self.out_cw,
             in_y: self.in_y,
         }
     }

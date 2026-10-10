@@ -18,12 +18,13 @@ const FONT_DIRS: &[&str] = &[
     "C:/Windows/Fonts",
 ];
 
-fn try_load(names: &[(&str, usize)]) -> Result<FontArc, String> {
+fn try_load(names: &[&str]) -> Result<FontArc, String> {
     for dir in FONT_DIRS {
-        for (name, idx) in names {
+        for name in names {
             let p = format!("{dir}/{name}");
             if let Ok(data) = std::fs::read(&p) {
-                if let Ok(f) = FontArc::try_from_vec_and_index(data, *idx) {
+                // for collections this picks face 0, which is fine as a fallback
+                if let Ok(f) = FontArc::try_from_vec(data) {
                     return Ok(f);
                 }
             }
@@ -41,28 +42,28 @@ impl FontSet {
         Ok(FontSet {
             fonts: [
                 try_load(&[
-                    ("DejaVuSansMono.ttf", 0),
-                    ("LiberationMono-Regular.ttf", 0),
-                    ("Menlo.ttc", 0),
-                    ("consolas.ttf", 0),
+                    "DejaVuSansMono.ttf",
+                    "LiberationMono-Regular.ttf",
+                    "Menlo.ttc",
+                    "consolas.ttf",
                 ])?,
                 try_load(&[
-                    ("DejaVuSansMono-Bold.ttf", 0),
-                    ("LiberationMono-Bold.ttf", 0),
-                    ("Menlo.ttc", 1),
-                    ("consolab.ttf", 0),
+                    "DejaVuSansMono-Bold.ttf",
+                    "LiberationMono-Bold.ttf",
+                    "Menlo.ttc",
+                    "consolab.ttf",
                 ])?,
                 try_load(&[
-                    ("DejaVuSans.ttf", 0),
-                    ("LiberationSans-Regular.ttf", 0),
-                    ("Helvetica.ttc", 0),
-                    ("arial.ttf", 0),
+                    "DejaVuSans.ttf",
+                    "LiberationSans-Regular.ttf",
+                    "Helvetica.ttc",
+                    "arial.ttf",
                 ])?,
                 try_load(&[
-                    ("DejaVuSans-Bold.ttf", 0),
-                    ("LiberationSans-Bold.ttf", 0),
-                    ("Helvetica.ttc", 1),
-                    ("arialbd.ttf", 0),
+                    "DejaVuSans-Bold.ttf",
+                    "LiberationSans-Bold.ttf",
+                    "Helvetica.ttc",
+                    "arialbd.ttf",
                 ])?,
             ],
         })
