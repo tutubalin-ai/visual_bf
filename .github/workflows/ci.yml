@@ -9,11 +9,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: build
-        run: cargo build --release --verbose
-
-      - name: unit tests
-        run: cargo test --release
+      - name: build and test
+        run: |
+          set -o pipefail
+          { cargo build --release --verbose && cargo test --release; } 2>&1 | tee /tmp/build.log
 
       - name: render examples
         run: |
@@ -27,7 +26,15 @@ jobs:
           python3 -m pip install --quiet pillow
           python3 ci/check.py
 
-      - name: upload artifacts
+      - name: upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /tmp/build.log
+
+      - name: upload gifs and frames
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: gifs-and-frames

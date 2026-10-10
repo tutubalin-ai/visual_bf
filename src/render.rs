@@ -171,14 +171,14 @@ impl Canvas {
         let v0 = (px - a.0, py - a.1);
         let v1 = (px - b.0, py - b.1);
         let v2 = (px - c.0, py - c.1);
-        let cl = |v: f32, e: (f32, f32), p: (f32, f32)| {
+        let cl = |e: (f32, f32), p: (f32, f32)| {
             let l = dot(e.0, e.1, e.0, e.1);
             let t = (dot(p.0, p.1, e.0, e.1) / l).clamp(0.0, 1.0);
             (p.0 - e.0 * t, p.1 - e.1 * t)
         };
-        let pq0 = cl(v0.0, v0.1, e0, v0);
-        let pq1 = cl(v1.0, v1.1, e1, v1);
-        let pq2 = cl(v2.0, v2.1, e2, v2);
+        let pq0 = cl(e0, v0);
+        let pq1 = cl(e1, v1);
+        let pq2 = cl(e2, v2);
         let s = (e0.0 * e2.1 - e2.0 * e0.1).signum();
         let d0 = dot(pq0.0, pq0.1, pq0.0, pq0.1).min(s * (v0.0 * e0.1 - v0.1 * e0.0));
         let d1 = dot(pq1.0, pq1.1, pq1.0, pq1.1).min(s * (v1.0 * e1.1 - v1.1 * e1.0));
