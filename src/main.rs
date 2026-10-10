@@ -171,15 +171,15 @@ fn run(a: &Args) -> Result<(), String> {
     let (plan, scaled) = frames_per_step(&trace, a.max_frames);
 
     let fonts = FontSet::load()?;
-    let mut gc = GlyphCache::new(fonts);
+    let gc = GlyphCache::new(fonts);
     let mut chars = src.chars;
-    let layout = compute_layout(&mut chars, &mut gc, a.cells, src.cmds.contains(&','));
+    let layout = compute_layout(&mut chars, &gc, a.cells, src.cmds.contains(&','));
 
     let name = std::path::Path::new(&a.program)
         .file_name().map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| a.program.clone());
 
-    let mut r = Renderer {
+    let r = Renderer {
         gc,
         l: layout,
         t: trace,
@@ -193,6 +193,7 @@ fn run(a: &Args) -> Result<(), String> {
         bg: Canvas::new(W * 2, H * 2, BG_TOP),
     }
     .build_background();
+    r.gc.warmup();
 
     let n = INTRO_FRAMES + plan.iter().sum::<u32>() + OUTRO_FRAMES;
     let mut frame_ms = a.frame_ms;
@@ -221,15 +222,25 @@ fn run(a: &Args) -> Result<(), String> {
         .map_err(|e| format!("gif encoder: {e}"))?;
     enc.set_repeat(gif::Repeat::Infinite).map_err(|e| e.to_string())?;
 
-    let quantize = |rgb: &[u8]| -> Vec<u8> {
-        let mut idx = vec![0u8; W as usize * H as usize];
-        for (i, o) in idx.iter_mut().enumerate() {
-            let p = &rgb[i * 3..i * 3 + 3];
-            let key = (p[0] as usize / 16) << 8 | (p[1] as usize / 16) << 4 | p[2] as usize / 16;
-            *o = lut[key];
+    /// 2x buffer -> 1x palette indices in one fused pass.
+    fn quantize_down(cv: &Canvas, lut: &[u8]) -> Vec<u8> {
+        let (ow, oh) = (W as usize, H as usize);
+        let src = &cv.px;
+        let sw3 = (cv.w as usize) * 3;
+        let mut out = vec![0u8; ow * oh];
+        for y in 0..oh {
+            let row = y * 2 * sw3;
+            for x in 0..ow {
+                let i = row + x * 6;
+                let rr = (src[i] as u32 + src[i + 3] as u32 + src[i + sw3] as u32 + src[i + sw3 + 3] as u32) / 4;
+                let gg = (src[i + 1] as u32 + src[i + 4] as u32 + src[i + sw3 + 1] as u32 + src[i + sw3 + 4] as u32) / 4;
+                let bb = (src[i + 2] as u32 + src[i + 5] as u32 + src[i + sw3 + 2] as u32 + src[i + sw3 + 5] as u32) / 4;
+                let key = ((rr / 16) as usize) << 8 | ((gg / 16) as usize) << 4 | (bb / 16) as usize;
+                out[y * ow + x] = lut[key];
+            }
         }
-        idx
-    };
+        out
+    }
 
     fn write_frame<WR: std::io::Write>(enc: &mut gif::Encoder<WR>, idx: &[u8],
                                        delay_cs: u16) -> Result<(), String> {
@@ -244,23 +255,45 @@ fn run(a: &Args) -> Result<(), String> {
 
     let mut written = 0u32;
     // intro hold (rendered once)
-    let intro = quantize(&r.render(-1, 0.0).downsample(W, H));
+    let intro = quantize_down(&r.render(-1, 0.0), &lut);
     for _ in 0..INTRO_FRAMES {
         write_frame(&mut enc, &intro, delay_cs)?;
         written += 1;
     }
-    // steps
+    // steps — frames are independent, so render them on a thread pool and
+    // encode in order afterwards
+    let mut seq: Vec<(i32, f32)> = Vec::new();
     for (si, nf) in plan.iter().enumerate() {
         for k in 0..*nf {
-            let t = (k as f32 + 0.5) / *nf as f32;
-            let cv = r.render(si as i32, t);
-            let idx = quantize(&cv.downsample(W, H));
-            write_frame(&mut enc, &idx, delay_cs)?;
+            seq.push((si as i32, (k as f32 + 0.5) / *nf as f32));
+        }
+    }
+    let nthreads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(4);
+    for chunk in seq.chunks(64) {
+        let mut bufs: Vec<Vec<u8>> = vec![Vec::new(); chunk.len()];
+        if nthreads > 1 {
+            std::thread::scope(|sc| {
+                let per = (chunk.len() + nthreads - 1) / nthreads;
+                for (pb, ps) in bufs.chunks_mut(per).zip(chunk.chunks(per)) {
+                    sc.spawn(move || {
+                        for ((si, t), buf) in ps.iter().zip(pb.iter_mut()) {
+                            *buf = quantize_down(&r.render(*si, *t), &lut);
+                        }
+                    });
+                }
+            });
+        } else {
+            for ((si, t), buf) in chunk.iter().zip(bufs.iter_mut()) {
+                *buf = quantize_down(&r.render(*si, *t), &lut);
+            }
+        }
+        for b in &bufs {
+            write_frame(&mut enc, b, delay_cs)?;
             written += 1;
         }
     }
     // outro hold
-    let outro = quantize(&r.render(i32::MAX, 0.0).downsample(W, H));
+    let outro = quantize_down(&r.render(i32::MAX, 0.0), &lut);
     for _ in 0..OUTRO_FRAMES {
         write_frame(&mut enc, &outro, delay_cs)?;
         written += 1;

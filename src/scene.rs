@@ -25,7 +25,7 @@ fn descr(c: char) -> &'static str {
 }
 
 impl Renderer {
-    fn draw_status(&mut self, cv: &mut Canvas, si: i32) {
+    fn draw_status(&self, cv: &mut Canvas, si: i32) {
         let n = self.t.steps.len();
         let msg = if si < 0 {
             format!("ready — {n} command{} · {ncells} cells",
@@ -79,17 +79,17 @@ impl Renderer {
             }
             format!("step {}/{} · {}  {}{extra}", si + 1, n, st.c, descr(st.c))
         };
-        cv.text(&mut self.gc, W as f32 - 36.0, 30.0, &msg, MONO, 26, DIM, "rm", 0.0);
+        cv.text(&self.gc, W as f32 - 36.0, 30.0, &msg, MONO, 26, DIM, "rm", 0.0);
     }
 
-    fn code_highlight(&mut self, cv: &mut Canvas, idx: usize, t: f32) {
+    fn code_highlight(&self, cv: &mut Canvas, idx: usize, t: f32) {
         let st = &self.t.steps[idx];
         let sc = self.chars[self.cmd_src[st.pc]].clone();
         let cw = self.gc.width(MONO, self.l.code_px * 2, "M", 0.0) / 2.0;
         let (hw, hh) = (cw / 2.0 + 3.0, 11.5);
         let pill = blend(CARD, AMBER, (90.0 + 40.0 * (std::f32::consts::PI * t).sin()) / 255.0);
         cv.round_rect(sc.x - hw, sc.y - hh, sc.x + hw, sc.y + hh, 6.0, Some(pill), None);
-        cv.text(&mut self.gc, sc.x, sc.y, &sc.ch.to_string(), MONO, self.l.code_px * 2, CREAM, "mm", 0.0);
+        cv.text(&self.gc, sc.x, sc.y, &sc.ch.to_string(), MONO, self.l.code_px * 2, CREAM, "mm", 0.0);
 
         if st.c == '[' || st.c == ']' {
             let other = self.chars[self.cmd_src[self.pairs[st.pc]]].clone();
@@ -115,7 +115,7 @@ impl Renderer {
         }
     }
 
-    fn pointer(&mut self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
+    fn pointer(&self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
         let (_, ptr0, _, _) = self.state(idx);
         let x = if active && matches!(self.t.steps[idx].c, '<' | '>') {
             let (_, ptr1, _, _) = self.state(idx + 1);
@@ -137,7 +137,7 @@ impl Renderer {
         out
     }
 
-    fn draw_roll(&mut self, cv: &mut Canvas, cx: f32, cy: f32, dw: f32, v0: u8, v1: u8, c: char, t: f32) {
+    fn draw_roll(&self, cv: &mut Canvas, cx: f32, cy: f32, dw: f32, v0: u8, v1: u8, c: char, t: f32) {
         let l = &self.l;
         let clip = (
             ((cx - l.cell_w / 2.0) * S) as i32,
@@ -154,8 +154,8 @@ impl Renderer {
             let (s0, s1) = (format!("{v0:03}"), format!("{v1:03}"));
             let dy = tt * roll_h * 1.6;
             let sign = if c == '+' { 1.0 } else { -1.0 };
-            cv.text(&mut self.gc, cx, cy - sign * dy, &s0, MONO_BOLD, px, ACCENT, "mm", 0.0);
-            cv.text(&mut self.gc, cx, cy + sign * (roll_h * 1.6 - dy), &s1, MONO_BOLD, px, WHITE, "mm", 0.0);
+            cv.text(&self.gc, cx, cy - sign * dy, &s0, MONO_BOLD, px, ACCENT, "mm", 0.0);
+            cv.text(&self.gc, cx, cy + sign * (roll_h * 1.6 - dy), &s1, MONO_BOLD, px, WHITE, "mm", 0.0);
         } else {
             let d0 = format!("{v0:03}");
             let d1 = format!("{v1:03}");
@@ -167,7 +167,7 @@ impl Renderer {
                 let b = d1.as_bytes()[k].wrapping_sub(b'0') as u32;
                 if a == b {
                     let col = if final_digits[k].1 == TEXT { WHITE } else { FAINT };
-                    cv.text(&mut self.gc, x, cy, &a.to_string(), MONO_BOLD, px, col, "mm", 0.0);
+                    cv.text(&self.gc, x, cy, &a.to_string(), MONO_BOLD, px, col, "mm", 0.0);
                     continue;
                 }
                 let steps = if c == ',' { ((b + 10 - a) % 10) as i32 } else { 1 };
@@ -181,14 +181,14 @@ impl Renderer {
                     } else {
                         ACCENT
                     };
-                    cv.text(&mut self.gc, x, y, &digit.to_string(), MONO_BOLD, px, col, "mm", 0.0);
+                    cv.text(&self.gc, x, y, &digit.to_string(), MONO_BOLD, px, col, "mm", 0.0);
                 }
             }
         }
         cv.set_clip(None);
     }
 
-    fn draw_cells(&mut self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
+    fn draw_cells(&self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
         let (tape0, ptr0, _, _) = self.state(idx);
         let (tape1, ptr1, _, _) = self.state(idx + 1);
         let st = if active { Some(self.t.steps[idx].clone()) } else { None };
@@ -228,13 +228,13 @@ impl Renderer {
             let hot = i == ptr0;
             for (k, (ch, col)) in digits.iter().enumerate() {
                 let col = if hot && *col == TEXT { WHITE } else { *col };
-                cv.text(&mut self.gc, cx + (k as f32 - 1.0) * dw, cy, &ch.to_string(),
+                cv.text(&self.gc, cx + (k as f32 - 1.0) * dw, cy, &ch.to_string(),
                         MONO_BOLD, 52, col, "mm", 0.0);
             }
         }
     }
 
-    fn draw_output(&mut self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
+    fn draw_output(&self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
         let l = &self.l;
         let (_, _, outlen, _) = self.state(idx);
         let st = if active { Some(self.t.steps[idx].clone()) } else { None };
@@ -293,7 +293,7 @@ impl Renderer {
         for (li, line) in vis.iter().enumerate() {
             let mut x = l.out_text_x;
             for (ch, col) in line {
-                cv.text(&mut self.gc, x, y, &ch.to_string(), MONO, 36, *col, "lm", 0.0);
+                cv.text(&self.gc, x, y, &ch.to_string(), MONO, 36, *col, "lm", 0.0);
                 x += l.out_cw;
             }
             if li == vis.len() - 1 {
@@ -310,15 +310,15 @@ impl Renderer {
 
         let shown = outlen + if typing && t >= 0.45 { 1 } else { 0 };
         let cnt = format!("{shown} byte{}", if shown != 1 { "s" } else { "" });
-        cv.text(&mut self.gc, l.out_rect.2 - 20.0, l.out_rect.1 + 22.0, &cnt, SANS, 22, FAINT, "rm", 0.0);
+        cv.text(&self.gc, l.out_rect.2 - 20.0, l.out_rect.1 + 22.0, &cnt, SANS, 22, FAINT, "rm", 0.0);
     }
 
-    fn chip_w(&mut self, b: u8) -> f32 {
+    fn chip_w(&self, b: u8) -> f32 {
         let label = if (32..127).contains(&b) { (b as char).to_string() } else { byte_glyph(b) };
         (self.gc.width(MONO, 28, &label, 0.0) / 2.0 + 14.0).max(26.0)
     }
 
-    fn draw_input(&mut self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
+    fn draw_input(&self, cv: &mut Canvas, idx: usize, t: f32, active: bool) {
         let ir = match self.l.in_rect {
             Some(r) => r,
             None => return,
@@ -344,7 +344,7 @@ impl Renderer {
             let cw = self.chip_w(b);
             let xx = x - if k > 0 { shift } else { 0.0 };
             if xx + cw > max_x {
-                cv.text(&mut self.gc, x, y, &format!("+{} more", rem.len() - k), SANS, 24, FAINT, "lm", 0.0);
+                cv.text(&self.gc, x, y, &format!("+{} more", rem.len() - k), SANS, 24, FAINT, "lm", 0.0);
                 break;
             }
             let (fill, outline, tcol) = if k == 0 && consuming {
@@ -362,27 +362,27 @@ impl Renderer {
             };
             cv.round_rect(xx, y - chip_h / 2.0, xx + cw, y + chip_h / 2.0, 8.0,
                           Some(fill), Some((outline, 1.0)));
-            cv.text(&mut self.gc, xx + cw / 2.0, y, &label, MONO_BOLD, 28, tcol, "mm", 0.0);
+            cv.text(&self.gc, xx + cw / 2.0, y, &label, MONO_BOLD, 28, tcol, "mm", 0.0);
             x += cw + gap;
         }
 
         if consuming {
             if let Some(s) = &st {
                 if s.in_byte < 0 {
-                    cv.text(&mut self.gc, x0, y + 26.0, "EOF — no bytes left, cell gets 0",
+                    cv.text(&self.gc, x0, y + 26.0, "EOF — no bytes left, cell gets 0",
                             SANS, 24, RED, "lm", 0.0);
                 }
             }
         } else if idx >= self.t.steps.len() && self.t.eof_hit {
-            cv.text(&mut self.gc, x0, y + 26.0, "EOF was reached during this run",
+            cv.text(&self.gc, x0, y + 26.0, "EOF was reached during this run",
                     SANS, 24, FAINT, "lm", 0.0);
         } else if self.data.is_empty() {
-            cv.text(&mut self.gc, x0, y, "(no stdin — ',' reads EOF)", SANS, 24, FAINT, "lm", 0.0);
+            cv.text(&self.gc, x0, y, "(no stdin — ',' reads EOF)", SANS, 24, FAINT, "lm", 0.0);
         }
     }
 
     /// si: -1 intro, >= len(steps) outro, otherwise step index; t in [0,1)
-    pub fn render(&mut self, si: i32, t: f32) -> Canvas {
+    pub fn render(&self, si: i32, t: f32) -> Canvas {
         let (idx, active) = if si < 0 {
             (0usize, false)
         } else if si as usize >= self.t.steps.len() {

@@ -82,7 +82,7 @@ pub struct CachedGlyph {
 
 pub struct GlyphCache {
     fonts: FontSet,
-    map: HashMap<u64, CachedGlyph>,
+    map: std::sync::Mutex<HashMap<u64, CachedGlyph>>,
 }
 
 fn key(fk: u8, px: i32, ch: char) -> u64 {
@@ -91,12 +91,26 @@ fn key(fk: u8, px: i32, ch: char) -> u64 {
 
 impl GlyphCache {
     pub fn new(fonts: FontSet) -> GlyphCache {
-        GlyphCache { fonts, map: HashMap::new() }
+        GlyphCache { fonts, map: std::sync::Mutex::new(HashMap::new()) }
     }
 
-    pub fn get(&mut self, fk: u8, px: i32, ch: char) -> CachedGlyph {
+    /// Rasterize the whole working character set up front so that frame
+    /// rendering never needs to grow the cache (and can run in parallel).
+    pub fn warmup(&self) {
+        let sizes = [22i32, 24, 26, 28, 30, 32, 36, 52];
+        let extras = "—·→≠\\×·+-<>[],.";
+        for fk in 0..4u8 {
+            for &px in &sizes {
+                for ch in (32u8..127).map(|b| b as char).chain(extras.chars()) {
+                    let _ = self.get(fk, px, ch);
+                }
+            }
+        }
+    }
+
+    pub fn get(&self, fk: u8, px: i32, ch: char) -> CachedGlyph {
         let k = key(fk, px, ch);
-        if let Some(g) = self.map.get(&k) {
+        if let Some(g) = self.map.lock().unwrap().get(&k) {
             return g.clone();
         }
         let font = &self.fonts.fonts[fk as usize];
@@ -126,7 +140,7 @@ impl GlyphCache {
             }
         }
         let g = CachedGlyph { adv, ox, oy, w, h, cov };
-        self.map.insert(k, g.clone());
+        self.map.lock().unwrap().insert(k, g.clone());
         g
     }
 
@@ -137,7 +151,7 @@ impl GlyphCache {
         (sf.ascent(), sf.descent())
     }
 
-    pub fn width(&mut self, fk: u8, px: i32, s: &str, spacing: f32) -> f32 {
+    pub fn width(&self, fk: u8, px: i32, s: &str, spacing: f32) -> f32 {
         let mut w = 0.0;
         for ch in s.chars() {
             w += self.get(fk, px, ch).adv + spacing;

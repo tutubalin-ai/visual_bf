@@ -204,7 +204,7 @@ impl Canvas {
 
     /// anchor: two chars, horizontal l/m/r and vertical m/t (like PIL).
     /// x/y are logical; glyph metrics come from the 2x px size.
-    pub fn text(&mut self, gc: &mut GlyphCache, x: f32, y: f32, s: &str, fk: u8, px: i32,
+    pub fn text(&mut self, gc: &GlyphCache, x: f32, y: f32, s: &str, fk: u8, px: i32,
                 col: C, anchor: &str, spacing: f32) {
         let w2 = gc.width(fk, px, s, spacing * S);
         let (asc, desc) = gc.metrics(fk, px);
@@ -234,30 +234,6 @@ impl Canvas {
         }
     }
 
-    pub fn downsample(&self, ow: i32, oh: i32) -> Vec<u8> {
-        let f = (self.w / ow) as usize;
-        let mut out = vec![0u8; (ow * oh * 3) as usize];
-        for y in 0..oh as usize {
-            for x in 0..ow as usize {
-                let mut acc = [0u32; 3];
-                for dy in 0..f {
-                    let row = ((y * f + dy) * self.w as usize + x * f) * 3;
-                    for dx in 0..f {
-                        let i = row + dx * 3;
-                        acc[0] += self.px[i] as u32;
-                        acc[1] += self.px[i + 1] as u32;
-                        acc[2] += self.px[i + 2] as u32;
-                    }
-                }
-                let n = (f * f) as u32;
-                let o = (y * ow as usize + x) * 3;
-                out[o] = (acc[0] / n) as u8;
-                out[o + 1] = (acc[1] / n) as u8;
-                out[o + 2] = (acc[2] / n) as u8;
-            }
-        }
-        out
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +308,7 @@ fn wrap_source(chars: &mut [SrcChar], cpl: i32) -> Vec<Vec<usize>> {
     lines
 }
 
-pub fn compute_layout(chars: &mut [SrcChar], gc: &mut GlyphCache, ncells: usize,
+pub fn compute_layout(chars: &mut [SrcChar], gc: &GlyphCache, ncells: usize,
                       has_comma: bool) -> Layout {
     let m = 36.0f32;
     let code_y0 = 54.0f32;
@@ -470,9 +446,9 @@ impl Renderer {
             }
         }
         // title
-        cv.text(&mut self.gc, 36.0, 30.0, &self.name, SANS_BOLD, 30, TEXT, "lm", 0.0);
+        cv.text(&self.gc, 36.0, 30.0, &self.name, SANS_BOLD, 30, TEXT, "lm", 0.0);
         let nw = self.gc.width(SANS_BOLD, 30, &self.name, 0.0) / 2.0;
-        cv.text(&mut self.gc, 36.0 + nw + 12.0, 30.0, "·  brainfuck, step by step", SANS, 26, DIM, "lm", 0.0);
+        cv.text(&self.gc, 36.0 + nw + 12.0, 30.0, "·  brainfuck, step by step", SANS, 26, DIM, "lm", 0.0);
         // source card
         let r = l.code_rect;
         cv.round_rect(r.0, r.1, r.2, r.3, 14.0, Some(CARD), Some((CARD_BRD, 1.0)));
@@ -485,7 +461,7 @@ impl Renderer {
             } else {
                 FAINT
             };
-            cv.text(&mut self.gc, sc.x, sc.y, &sc.ch.to_string(), MONO, l.code_px * 2, col, "mm", 0.0);
+            cv.text(&self.gc, sc.x, sc.y, &sc.ch.to_string(), MONO, l.code_px * 2, col, "mm", 0.0);
         }
         // pointer rail
         let rx0 = self.l.cell_x0 - 20.0;
@@ -497,22 +473,22 @@ impl Renderer {
             cv.round_rect(cx - self.l.cell_w / 2.0, self.l.cell_y,
                           cx + self.l.cell_w / 2.0, self.l.cell_y + self.l.cell_h,
                           12.0, Some(CARD), Some((CARD_BRD, 1.0)));
-            cv.text(&mut self.gc, cx, self.l.cell_y + self.l.cell_h + 8.0, &i.to_string(),
+            cv.text(&self.gc, cx, self.l.cell_y + self.l.cell_h + 8.0, &i.to_string(),
                     MONO, 22, FAINT, "mt", 0.0);
         }
         // bottom panels
         let r = self.l.out_rect;
         cv.round_rect(r.0, r.1, r.2, r.3, 14.0, Some(CARD), Some((CARD_BRD, 1.0)));
-        cv.text(&mut self.gc, r.0 + 20.0, r.1 + 22.0, "OUTPUT", SANS_BOLD, 22, DIM, "lm", 2.0);
+        cv.text(&self.gc, r.0 + 20.0, r.1 + 22.0, "OUTPUT", SANS_BOLD, 22, DIM, "lm", 2.0);
         if let Some(ir) = self.l.in_rect {
             cv.round_rect(ir.0, ir.1, ir.2, ir.3, 14.0, Some(CARD), Some((CARD_BRD, 1.0)));
-            cv.text(&mut self.gc, ir.0 + 20.0, ir.1 + 22.0, "INPUT", SANS_BOLD, 22, DIM, "lm", 2.0);
+            cv.text(&self.gc, ir.0 + 20.0, ir.1 + 22.0, "INPUT", SANS_BOLD, 22, DIM, "lm", 2.0);
             let sub = if !self.data.is_empty() {
                 format!("{} byte{} on stdin", self.data.len(), if self.data.len() != 1 { "s" } else { "" })
             } else {
                 "stdin empty — ',' reads EOF".into()
             };
-            cv.text(&mut self.gc, ir.2 - 20.0, ir.1 + 22.0, &sub, SANS, 22, FAINT, "rm", 0.0);
+            cv.text(&self.gc, ir.2 - 20.0, ir.1 + 22.0, &sub, SANS, 22, FAINT, "rm", 0.0);
         }
         self.bg = cv;
         self
