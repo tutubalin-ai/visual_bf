@@ -1,0 +1,13 @@
+[package]
+name = "bfviz"
+version = "0.2.0"
+edition = "2021"
+description = "Step-by-step animated GIF visualizer for small Brainfuck programs"
+license = "MIT"
+
+[dependencies]
+ab_glyph = "0.2"
+gif = "0.13"
+
+[profile.release]
+opt-level = 3

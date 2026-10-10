@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+
+jobs:
+  build-test-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build
+        run: cargo build --release --verbose
+
+      - name: unit tests
+        run: cargo test --release
+
+      - name: render examples
+        run: |
+          ./target/release/bfviz examples/add.bf -o /tmp/add.gif < /dev/null
+          ./target/release/bfviz examples/hello.bf -o /tmp/hello.gif < /dev/null
+          ./target/release/bfviz examples/stars.bf -o /tmp/stars.gif < /dev/null
+          printf 'hi\n' | ./target/release/bfviz examples/cat.bf -o /tmp/cat.gif
+
+      - name: verify gifs and extract frames
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 ci/check.py
+
+      - name: upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gifs-and-frames
+          path: |
+            /tmp/add.gif
+            /tmp/hello.gif
+            /tmp/stars.gif
+            /tmp/cat.gif
+            /tmp/frames
