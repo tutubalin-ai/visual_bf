@@ -202,23 +202,24 @@ impl Canvas {
         }
     }
 
-    /// anchor: two chars, horizontal l/m/r and vertical m/t (like PIL)
+    /// anchor: two chars, horizontal l/m/r and vertical m/t (like PIL).
+    /// x/y are logical; glyph metrics come from the 2x px size.
     pub fn text(&mut self, gc: &mut GlyphCache, x: f32, y: f32, s: &str, fk: u8, px: i32,
                 col: C, anchor: &str, spacing: f32) {
-        let wdt = gc.width(fk, px, s, spacing);
+        let w2 = gc.width(fk, px, s, spacing * S);
         let (asc, desc) = gc.metrics(fk, px);
         let sx = match anchor.chars().next() {
-            Some('m') => x - wdt / 2.0,
-            Some('r') => x - wdt,
-            _ => x,
+            Some('m') => x * S - w2 / 2.0,
+            Some('r') => x * S - w2,
+            _ => x * S,
         };
-        let baseline = match anchor.chars().nth(1) {
-            Some('m') => y - (asc + desc) / 2.0,
-            Some('t') => y - asc,
-            _ => y,
+        let y2 = y * S;
+        let by = match anchor.chars().nth(1) {
+            Some('m') => y2 - (asc + desc) / 2.0,
+            Some('t') => y2 - asc,
+            _ => y2,
         };
-        let mut pen = sx * S;
-        let by = baseline * S;
+        let mut pen = sx;
         for ch in s.chars() {
             let g = gc.get(fk, px, ch);
             let gx = (pen + g.ox as f32).round() as i32;
@@ -229,7 +230,7 @@ impl Canvas {
                     self.blend(gx + rx, gy + ry, col, v);
                 }
             }
-            pen += (g.adv + spacing) * S;
+            pen += g.adv + spacing * S;
         }
     }
 
