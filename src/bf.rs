@@ -277,7 +277,9 @@ mod tests {
     #[test]
     fn eof_is_zero() {
         let (out, _) = run(",.", b"");
-        assert_eq!(out, [0, 0]);
+        assert_eq!(out, [0]);
+        let (out, _) = run(",[.,]", b"");
+        assert_eq!(out, [0]);
     }
 
     #[test]
