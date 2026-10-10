@@ -443,11 +443,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    fn cell_cx(&self, i: f32) -> f32 {
+    pub fn cell_cx(&self, i: f32) -> f32 {
         self.l.cell_x0 + i * (self.l.cell_w + self.l.cell_gap) + self.l.cell_w / 2.0
     }
 
-    fn state(&self, idx: usize) -> (Vec<u8>, usize, usize, usize) {
+    pub fn state(&self, idx: usize) -> (Vec<u8>, usize, usize, usize) {
         if idx >= self.t.steps.len() {
             return (self.t.final_tape.clone(), self.t.final_ptr, self.t.final_out.len(), self.t.final_inpos);
         }

@@ -33,9 +33,8 @@ pub fn load_source(text: &str) -> Result<Source, String> {
     let mut chars: Vec<SrcChar> = Vec::new();
     let mut cmds: Vec<char> = Vec::new();
     let mut cmd_src: Vec<usize> = Vec::new();
-    for mut ch in text.replace('\r', "").chars() {
+    for ch in text.replace('\r', "").chars() {
         if ch == '\t' {
-            ch = ' ';
             chars.push(SrcChar { ch: ' ', cmd: -1, x: 0.0, y: 0.0, line: 0, col: 0 });
             chars.push(SrcChar { ch: ' ', cmd: -1, x: 0.0, y: 0.0, line: 0, col: 0 });
             continue;
@@ -146,7 +145,6 @@ pub fn execute(cmds: &[char], pairs: &[usize], data: &[u8], ncells: usize, max_s
         };
         let mut st = Step { pc, c, tape: tape.clone(), ptr, outlen: out.len(), inpos, it, jump: J_NONE, in_byte: -2 };
 
-        let mut cont = false;
         match c {
             '+' => tape[ptr] = tape[ptr].wrapping_add(1),
             '-' => tape[ptr] = tape[ptr].wrapping_sub(1),
@@ -182,11 +180,10 @@ pub fn execute(cmds: &[char], pairs: &[usize], data: &[u8], ncells: usize, max_s
                     st.jump = J_SKIP;
                     steps.push(st);
                     pc = pairs[pc] + 1;
-                    cont = true;
-                } else {
-                    st.jump = J_ENTER;
-                    loop_stack.push(pc);
+                    continue;
                 }
+                st.jump = J_ENTER;
+                loop_stack.push(pc);
             }
             ']' => {
                 let open = pairs[pc];
@@ -195,20 +192,17 @@ pub fn execute(cmds: &[char], pairs: &[usize], data: &[u8], ncells: usize, max_s
                     iters[open] += 1;
                     steps.push(st);
                     pc = open + 1;
-                    cont = true;
-                } else {
-                    st.jump = J_EXIT;
-                    if loop_stack.last() == Some(&open) {
-                        loop_stack.pop();
-                    }
+                    continue;
+                }
+                st.jump = J_EXIT;
+                if loop_stack.last() == Some(&open) {
+                    loop_stack.pop();
                 }
             }
             _ => {}
         }
-        if !cont {
-            steps.push(st);
-            pc += 1;
-        }
+        steps.push(st);
+        pc += 1;
     }
 
     Ok(Trace { steps, final_tape: tape, final_ptr: ptr, final_out: out, final_inpos: inpos, eof_hit })
