@@ -2,6 +2,12 @@ name: ci
 
 on:
   push:
+    branches:
+      - 'arena/**'
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   build-test-render:
@@ -16,31 +22,43 @@ jobs:
 
       - name: render examples
         run: |
-          ./target/release/bfviz examples/add.bf -o /tmp/add.gif < /dev/null
-          ./target/release/bfviz examples/hello.bf -o /tmp/hello.gif < /dev/null
-          ./target/release/bfviz examples/stars.bf -o /tmp/stars.gif < /dev/null
-          printf 'hi\n' | ./target/release/bfviz examples/cat.bf -o /tmp/cat.gif
+          set -o pipefail
+          { ./target/release/bfviz examples/add.bf -o /tmp/add.gif < /dev/null
+            ./target/release/bfviz examples/hello.bf -o /tmp/hello.gif < /dev/null
+            ./target/release/bfviz examples/stars.bf -o /tmp/stars.gif < /dev/null
+            printf 'hi\n' | ./target/release/bfviz examples/cat.bf -o /tmp/cat.gif
+          } 2>&1 | tee /tmp/render.log
 
       - name: verify gifs and extract frames
         run: |
           python3 -m pip install --quiet pillow
           python3 ci/check.py
 
-      - name: upload build log
+      - name: report to PR
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: /tmp/build.log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "CI run ${{ github.run_id }} for ${{ github.sha }}: **${{ job.status }}**"
+            echo '```'
+            tail -c 5500 /tmp/build.log 2>/dev/null || true
+            echo '```'
+            echo '```'
+            cat /tmp/render.log 2>/dev/null || true
+            echo '```'
+          } > /tmp/report.md
+          gh pr comment 1 --body-file /tmp/report.md || echo "could not comment"
 
-      - name: upload gifs and frames
+      - name: publish frames branch
         if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gifs-and-frames
-          path: |
-            /tmp/add.gif
-            /tmp/hello.gif
-            /tmp/stars.gif
-            /tmp/cat.gif
-            /tmp/frames
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git checkout -B ci-frames
+          mkdir -p ci_frames
+          cp /tmp/frames/*.png ci_frames/ || true
+          cp /tmp/add.gif /tmp/cat.gif ci_frames/ || true
+          git add -A ci_frames
+          git commit -m "ci frames from run ${{ github.run_id }}" || true
+          git push origin ci-frames
