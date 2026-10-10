@@ -269,6 +269,8 @@ fn run(a: &Args) -> Result<(), String> {
         }
     }
     let nthreads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(4);
+    let rr = &r;
+    let ll = &lut;
     for chunk in seq.chunks(64) {
         let mut bufs: Vec<Vec<u8>> = vec![Vec::new(); chunk.len()];
         if nthreads > 1 {
@@ -277,7 +279,7 @@ fn run(a: &Args) -> Result<(), String> {
                 for (pb, ps) in bufs.chunks_mut(per).zip(chunk.chunks(per)) {
                     sc.spawn(move || {
                         for ((si, t), buf) in ps.iter().zip(pb.iter_mut()) {
-                            *buf = quantize_down(&r.render(*si, *t), &lut);
+                            *buf = quantize_down(&rr.render(*si, *t), ll);
                         }
                     });
                 }
