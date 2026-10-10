@@ -278,8 +278,9 @@ mod tests {
     fn eof_is_zero() {
         let (out, _) = run(",.", b"");
         assert_eq!(out, [0]);
+        // EOF on ',' stores 0, so a following loop is skipped
         let (out, _) = run(",[.,]", b"");
-        assert_eq!(out, [0]);
+        assert_eq!(out, []);
     }
 
     #[test]
