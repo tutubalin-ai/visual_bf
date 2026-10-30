@@ -1,0 +1,4 @@
+/target
+*.gif
+__pycache__/
+*.pyc
